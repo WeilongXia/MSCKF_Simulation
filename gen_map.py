@@ -24,7 +24,7 @@ class gen_map():
         self.npoints = 1000
 
         # preallocate for the generated map
-        self.map = np.empty([self.npoints, 3], dtype = float)
+        self.map = np.empty([self.npoints, 3], dtype=np.float64)
 
     def gen_points(self):
 
@@ -62,6 +62,7 @@ class gen_map():
         plt.show()
 
     
+# test gen_map
 Gen_Map = gen_map()
 Gen_Map.gen_points()
 Gen_Map.draw_points()
