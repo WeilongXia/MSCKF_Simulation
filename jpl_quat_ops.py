@@ -57,7 +57,9 @@ def rot_mat_to_jpl_quat(rot_mat):
     if rot_mat.shape != (3, 3):
         raise TypeError("Rotation matrix must have size 3x3")
     w, x, y, z = 0.0, 0.0, 0.0, 0.0
+    # https://thatascience.com/learn-numpy/trace-of-matrix/
     trace = rot_mat.trace()
+
     if rot_mat[0, 0] >= trace and rot_mat[0, 0] >= rot_mat[1, 1] and rot_mat[0, 0] >= rot_mat[2, 2]:
         x = sqrt((1.0 + (2 * rot_mat[0, 0]) - trace) / 4.0)
         y = (1.0 / (4.0 * x)) * (rot_mat[0, 1] + rot_mat[1, 0])
@@ -80,13 +82,15 @@ def rot_mat_to_jpl_quat(rot_mat):
         y = (1.0 / (4.0 * w)) * (rot_mat[2, 0] - rot_mat[0, 2])
         z = (1.0 / (4.0 * w)) * (rot_mat[0, 1] - rot_mat[1, 0])
 
+    # The quaternion q and the quaternion -q describe a rotation to the same final coordinate system position
+    # and the quaternion with positive scalar element q4 describing the shortest rotation
     if w < 0:
         x = -x
         y = -y
         z = -z
         w = -w
 
-    return np.array([x, y, z, w])
+    return normalize(np.array([x, y, z, w]))
 
 
 def jpl_quat_to_rot_mat(q):
@@ -100,10 +104,13 @@ def jpl_quat_to_rot_mat(q):
 
     http://mars.cs.umn.edu/tr/reports/Trawny05b.pdf Eq 77
     """
+    # numpy @ operator
+    # https://blog.csdn.net/u013066730/article/details/106208249
+
     q_skew = skew_matrix(q[0:3])
     w = q[3]
     # q_real = self.q[0:3,np.newaxis]
-    # return (2 * w**2 - 1) * np.eye(3, dtype=np.float64) - 2 * w * q_skew + 2 * (q_real@q_real.T)
+    # return (2 * w**2 - 1) * np.eye(3, dtype=np.float64) - 2 * w * q_skew + 2 * (q_real @ q_real.T)
     return np.eye(3, dtype=np.float64) - (2 * w * q_skew) + (2 * q_skew @ q_skew)
 
 
@@ -144,7 +151,7 @@ def jpl_omega(vec):
     Returns:
         4x4 Omega matrix.
 
-    http://mars.cs.umn.edu/tr/reports/Trawny05b.pdf Eq 47
+    http://mars.cs.umn.edu/tr/reports/Trawny05b.pdf Eq 47,48
 
     """
     mat = np.empty((4, 4), dtype=np.float64)
@@ -170,29 +177,29 @@ def jpl_quat_left_matrix(q):
     http://mars.cs.umn.edu/tr/reports/Trawny05b.pdf Eq 61. Though it is expanded to its individual components.
 
     """
-    # Ql = np.empty((4, 4), dtype=np.float64)
-    # Ql[0:3, 0:3] = q[3] * np.eye(3) * -skew_matrix(q[0:3])
-    # Ql[0:3, 3] = q[0:3]
-    # Ql[3, 0:3] = q[0:3].transpose()
-    # Ql[3, 3] = q[3]
-
     Ql = np.empty((4, 4), dtype=np.float64)
-    Ql[0, 0] = q[3]
-    Ql[0, 1] = q[2]
-    Ql[0, 2] = -q[1]
-    Ql[0, 3] = q[0]
-    Ql[1, 0] = -q[2]
-    Ql[1, 1] = q[3]
-    Ql[1, 2] = q[0]
-    Ql[1, 3] = q[1]
-    Ql[2, 0] = q[1]
-    Ql[2, 1] = -q[0]
-    Ql[2, 2] = q[3]
-    Ql[2, 3] = q[2]
-    Ql[3, 0] = -q[0]
-    Ql[3, 1] = -q[1]
-    Ql[3, 2] = -q[2]
+    Ql[0:3, 0:3] = q[3] * np.eye(3) - skew_matrix(q[0:3])
+    Ql[0:3, 3] = q[0:3]
+    Ql[3, 0:3] = -q[0:3]
     Ql[3, 3] = q[3]
+
+    # Ql = np.empty((4, 4), dtype=np.float64)
+    # Ql[0, 0] = q[3]
+    # Ql[0, 1] = q[2]
+    # Ql[0, 2] = -q[1]
+    # Ql[0, 3] = q[0]
+    # Ql[1, 0] = -q[2]
+    # Ql[1, 1] = q[3]
+    # Ql[1, 2] = q[0]
+    # Ql[1, 3] = q[1]
+    # Ql[2, 0] = q[1]
+    # Ql[2, 1] = -q[0]
+    # Ql[2, 2] = q[3]
+    # Ql[2, 3] = q[2]
+    # Ql[3, 0] = -q[0]
+    # Ql[3, 1] = -q[1]
+    # Ql[3, 2] = -q[2]
+    # Ql[3, 3] = q[3]
 
     return Ql
 
@@ -292,3 +299,19 @@ class JPLQuaternion():
     def __str__(self):
         q = self.q
         return "x: {}, y: {}, z: {}, w: {}".format(q[0], q[1], q[2], q[3])
+
+
+# test np.array matrix multiply
+# print(np.array([[1., 2., 3.], [4., 5., 6.], [7., 8., 9.]], dtype=np.float64) @ np.array([[1., 2., 3.], [4., 5., 6.], [7., 8., 9.]], dtype=np.float64))
+
+# test rot_mat_to_jpl_quat()
+# print(rot_mat_to_jpl_quat(np.array([[0., 1., 0.], [1., 0., 0.], [0., 0., 1.]], dtype=np.float64)))
+
+# test jpl_error_quat
+# print(jpl_error_quat(np.array([1., 2., 3.], dtype=np.float64)))
+
+# test jpl_omega()
+# print(jpl_omega(np.array([1., 2., 3.], dtype=np.float64)))
+
+# test jpl_quat_left_matrix
+# print(jpl_quat_left_matrix(np.array([1., 2., 3., 4.], dtype=np.float64)))

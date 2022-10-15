@@ -21,10 +21,10 @@ class gen_map():
         self.height = 8.0
 
         # number of the generated 3D points
-        self.npoints = 1000
+        self.npoints = 3000
 
         # preallocate for the generated map
-        self.map = np.empty([self.npoints, 3], dtype=np.float64)
+        self.map = np.empty((self.npoints, 3), dtype=np.float64)
 
     def gen_points(self):
 

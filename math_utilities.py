@@ -44,6 +44,6 @@ def symmeterize_matrix(matrix):
     return (matrix + matrix.T) / 2
 
 # test math_utilities
-print(normalize(np.array([1., 2., 3.], dtype=np.float64)))
-print(skew_matrix(np.array([1., 2., 3.], dtype=np.float64)))
-print(symmeterize_matrix(np.array([[1., 2., 3.], [4., 5., 6.], [7., 8., 9.]], dtype=np.float64)))
+# print(normalize(np.array([1., 2., 3.], dtype=np.float64)))
+# print(skew_matrix(np.array([1., 2., 3.], dtype=np.float64)))
+# print(symmeterize_matrix(np.array([[1., 2., 3.], [4., 5., 6.], [7., 8., 9.]], dtype=np.float64)))
