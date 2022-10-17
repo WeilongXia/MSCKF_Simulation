@@ -1,3 +1,4 @@
+from sys import ps1
 from turtle import st
 from math_utilities import skew_matrix
 import numpy as np
@@ -67,10 +68,12 @@ def integrate(self, imu_measurement):
     '''
     Integrate IMU measurement to obtain nominal state of the system.
 
-    Use 5th order Runge-Kutta numerical integration to get more accuracy.
+    Use 4th order Runge-Kutta numerical integration for position and velocity to get more accuracy.
 
     Note that the biases keep constant after last update step
     '''
+
+    # reference: https://zhuanlan.zhihu.com/p/107032156
 
     dt = imu_measurement.time_interval
     unbiased_gyro = imu_measurement.angular_vel - self.state.bias_gyro
@@ -83,7 +86,49 @@ def integrate(self, imu_measurement):
     v0 = self.state.velocity
 
     omega = jpl_omega(unbiased_gyro)
-    # todo
+    
+    # Using zeroth order quaternion integrator from 
+    # (http://mars.cs.umn.edu/tr/reports/Trawny05b.pdf) Eq. 101, 103
+    if(gyro_norm > 1e-5):
+        q1 = (np.cos(gyro_norm * dt * 0.5) * np.eye(4) +
+              1 / gyro_norm * np.sin(gyro_norm * dt * 0.5) * omega) @ q0.q
+        q1_2 = (np.cos(gyro_norm * dt * 0.25) * np.eye(4) +
+              1 / gyro_norm * np.sin(gyro_norm * dt * 0.25) * omega) @ q0.q
+    else:
+        q1 = (np.eye(4) + 0.5 * dt * omega) @ q0.q
+        q1_2 = (np.eye(4) + 0.25 * dt * omega) @ q0.q
+
+    R1 = JPLQuaternion.from_array(q1).rotation_matrix().T
+    R1_2 = JPLQuaternion.from_array(q1_2).rotation_matrix().T
+
+    k1_v_dot = q0.rotation_matrix().T @ unbiased_acc + self.gravity
+    k1_p_dot = v0
+
+    # k2 = f(tn + dt / 2, yn + k1 * dt / 2)
+    k1_v = v0 + k1_v_dot * dt / 2
+    k2_v_dot = R1_2 @ unbiased_acc + self.gravity
+
+    k2_p_dot = k1_v
+
+    # k3 = f(tn + dt / 2, yn + k2 * dt / 2)
+    k2_v = v0 + k2_v_dot * dt / 2
+    k3_v_dot = R1_2 @ unbiased_acc + self.gravity
+
+    k3_p_dot = k2_v
+
+    # k4 = f(tn + dt, yn + k3 * dt)
+    k3_v = v0 + k3_v_dot * dt
+    k4_v_dot = R1 @ unbiased_acc + self.gravity
+
+    k4_p_dot = k3_v
+
+    # y(n+1) = y(n) + dt / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
+    v1 = v0 + dt / 6 * (k1_v_dot + 2 * k2_v_dot + 2 * k3_v_dot + k4_v_dot)
+    p1 = p0 + dt / 6 * (k1_p_dot + 2 * k2_p_dot + 2 * k3_p_dot + k4_p_dot)
+
+    self.state.imu_JPLQ_global = JPLQuaternion.from_array(q1)
+    self.state.global_t_imu = p1
+    self.state.velocity = v1
 
 
 def propagate(self, imu_buffer):
