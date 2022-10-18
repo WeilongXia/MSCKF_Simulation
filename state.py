@@ -73,7 +73,7 @@ class State():
         self.camera_poses = OrderedDict()
 
         # The covariance matrix of the state of IMU
-        self.covariance_ii = np.eye(StateInfo.IMU_STATE_SIZE, dtype=np.float64)
+        self.covariance = np.eye(StateInfo.IMU_STATE_SIZE, dtype=np.float64)
 
     def add_camera_pose(self, camera_pose):
         self.camera_poses[camera_pose.camera_id] = camera_pose

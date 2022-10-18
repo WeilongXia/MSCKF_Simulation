@@ -1,10 +1,11 @@
 from sys import ps1
 from turtle import st
-from math_utilities import skew_matrix
+from math_utilities import skew_matrix, symmeterize_matrix
 import numpy as np
 from jpl_quat_ops import JPLQuaternion, jpl_omega
 from state import State
 from state import StateInfo
+import scipy
 
 def compute_F(self, imu):
     ''' 
@@ -136,3 +137,30 @@ def propagate(self, imu_buffer):
     EKF covariance matrix is propagated.
     '''
 
+    for imu in imu_buffer:
+        F = self.compute_F(imu)
+        G = self.compute_G(imu)
+        self.integrate(imu)
+
+        Phi = None
+        # todo: There are several discretization methods for F
+        # We can choose different method to compare their result
+        # Now we use matrix exponent to discretize F
+        # Reference: https://zhuanlan.zhihu.com/p/76794930
+        Fdt = F * imu.time_interval
+        Phi = scipy.linalg.expm(Fdt)
+
+        imu_covar = self.state.covariance[0:StateInfo.IMU_STATE_SIZE, 0:StateInfo.IMU_STATE_SIZE]
+        Q = G @ self.noise_matrix @ G.T * imu.time_interval
+        new_convariance = Phi @ (imu_covar + Q) @ Phi.T
+
+        # Update the imu-camera covariance
+        self.state.covariance[0:15, 15:] = (Phi @ self.state.covariance[0:15, 15:])
+        self.state.covariance[15:, 0:15] = (self.state.covariance[15:, 0:15] @ Phi.T)
+
+        new_cov_symmetric = symmeterize_matrix(new_convariance)
+        self.state.covariance[0:StateInfo.IMU_STATE_SIZE, 0:StateInfo.IMU_STATE_SIZE] = new_cov_symmetric
+
+
+
+        
