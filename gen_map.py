@@ -63,9 +63,9 @@ class gen_map():
 
     
 # test gen_map
-Gen_Map = gen_map()
-Gen_Map.gen_points()
-Gen_Map.draw_points()
+# Gen_Map = gen_map()
+# Gen_Map.gen_points()
+# Gen_Map.draw_points()
 
 
 
